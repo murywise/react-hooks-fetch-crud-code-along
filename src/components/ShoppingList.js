@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ItemForm from "./ItemForm";
 import Filter from "./Filter";
 import Item from "./Item";
@@ -7,8 +7,56 @@ function ShoppingList() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [items, setItems] = useState([]);
 
+  // Fetch items from the server when the component mounts
+  useEffect(() => {
+    fetch("http://localhost:4000/items")
+      .then((r) => r.json())
+      .then((items) => setItems(items));
+  }, []);
+
   function handleCategoryChange(category) {
     setSelectedCategory(category);
+  }
+
+  function handleAddItem(formData) {
+    fetch("http://localhost:4000/items", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    })
+      .then((r) => r.json())
+      .then((newItem) => setItems([...items, newItem]));
+  }
+
+  function handleUpdateItem(updatedItem) {
+    fetch(`http://localhost:4000/items/${updatedItem.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updatedItem),
+    })
+      .then((r) => r.json())
+      .then((updatedItem) => {
+        const updatedItems = items.map((item) => {
+          if (item.id === updatedItem.id) return updatedItem;
+          return item;
+        });
+        setItems(updatedItems);
+      });
+  }
+
+  function handleDeleteItem(deletedItemId) {
+    fetch(`http://localhost:4000/items/${deletedItemId}`, {
+      method: "DELETE",
+    })
+      .then((r) => r.json())
+      .then(() => {
+        const updatedItems = items.filter((item) => item.id !== deletedItemId);
+        setItems(updatedItems);
+      });
   }
 
   const itemsToDisplay = items.filter((item) => {
@@ -19,14 +67,19 @@ function ShoppingList() {
 
   return (
     <div className="ShoppingList">
-      <ItemForm />
+      <ItemForm onAddItem={handleAddItem} />
       <Filter
         category={selectedCategory}
         onCategoryChange={handleCategoryChange}
       />
       <ul className="Items">
         {itemsToDisplay.map((item) => (
-          <Item key={item.id} item={item} />
+          <Item 
+            key={item.id} 
+            item={item} 
+            onUpdateItem={handleUpdateItem}
+            onDeleteItem={handleDeleteItem}
+          />
         ))}
       </ul>
     </div>
